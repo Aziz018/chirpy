@@ -1,12 +1,16 @@
 package main
 
 import (
-	"log"
-	"fmt"
-	"sync/atomic"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
+	"sync/atomic"
+
+	"github.com/joho/godotenv"
+
+	_ "github.com/lib/pq"
 )
 
 type apiConfig struct {
@@ -14,6 +18,14 @@ type apiConfig struct {
 }
 
 func main() {
+	godotenv.Load()
+	// dbURL := os.Getenv("DB_URL")
+	// db, err := sql.Open("postgres", dbURL)
+	// if err != nil {
+	// 	os.Exit(0x1)
+	// }
+	// dbQueries := database.New(db)
+
 	const filepathRoot = "."
 	const port = "8080"
 	apiCfg := &apiConfig{}
@@ -27,7 +39,7 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 	mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
-	
+
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
@@ -71,19 +83,19 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 }
 
 type ChirpRequest struct {
-    Body string `json:"body"`
+	Body string `json:"body"`
 }
 
 type ErrorResponse struct {
-    Error string `json:"error"`
+	Error string `json:"error"`
 }
 
 type ValidResponse struct {
-    Valid bool `json:"valid"`
+	Valid bool `json:"valid"`
 }
 
 type CleanedResponse struct {
-    CleanedBody string `json:"cleaned_body"`
+	CleanedBody string `json:"cleaned_body"`
 }
 
 var profaneWords = []string{"kerfuffle", "sharbert", "fornax"}
@@ -118,3 +130,62 @@ func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(CleanedResponse{CleanedBody: cleaned})
 }
+
+// package main
+
+// import (
+// 	"database/sql"
+// 	"log"
+// 	"net/http"
+// 	"os"
+// 	"sync/atomic"
+
+// 	"github.com/bootdotdev/learn-http-servers/internal/database"
+// 	"github.com/joho/godotenv"
+// 	_ "github.com/lib/pq"
+// )
+
+// type apiConfig struct {
+// 	fileserverHits atomic.Int32
+// 	db             *database.Queries
+// }
+
+// func main() {
+// 	const filepathRoot = "."
+// 	const port = "8080"
+
+// 	godotenv.Load()
+// 	dbURL := os.Getenv("DB_URL")
+// 	if dbURL == "" {
+// 		log.Fatal("DB_URL must be set")
+// 	}
+
+// 	dbConn, err := sql.Open("postgres", dbURL)
+// 	if err != nil {
+// 		log.Fatalf("Error opening database: %s", err)
+// 	}
+// 	dbQueries := database.New(dbConn)
+
+// 	apiCfg := apiConfig{
+// 		fileserverHits: atomic.Int32{},
+// 		db:             dbQueries,
+// 	}
+
+// 	mux := http.NewServeMux()
+// 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
+// 	mux.Handle("/app/", fsHandler)
+
+// 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+// 	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
+
+// 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
+// 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+
+// 	srv := &http.Server{
+// 		Addr:    ":" + port,
+// 		Handler: mux,
+// 	}
+
+// 	log.Printf("Serving on port: %s\n", port)
+// 	log.Fatal(srv.ListenAndServe())
+// }
