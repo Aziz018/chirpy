@@ -7,6 +7,3 @@ VALUES (
     $1
 )
 RETURNING *;
-
--- name: Reset :exec
-DELETE FROM users;

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"chirpy/internal/database"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,11 +13,12 @@ import (
 
 // ========== CRUD ========== //
 
+// Create user
 type User struct {
-	Id         uuid.UUID `json:"id"`
-	Created_At time.Time `json:"created_at"`
-	Updated_At time.Time `json:"updated_at"`
-	Email      string    `json:"email"`
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
 }
 
 func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -40,10 +44,85 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	respondWithJSON(w, http.StatusCreated, response{
 		User: User{
-			Id:         user.ID,
-			Created_At: user.CreatedAt,
-			Updated_At: user.UpdatedAt,
-			Email:      user.Email,
+			Id:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email:     user.Email,
 		},
 	})
+}
+
+// Create chirp
+type Chirp struct {
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserID    uuid.UUID `json:"user_id"`
+}
+
+func (cfg *apiConfig) handleCreateChirp(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Body   string    `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
+		return
+	}
+
+	cleaned, err := validateChirp(params.Body)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), err)
+		return
+	}
+
+	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
+		Body:   cleaned,
+		UserID: params.UserID,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create chirp", err)
+		return
+	}
+
+	// Respond with JSON directly
+	respondWithJSON(w, http.StatusCreated, Chirp{
+		Id:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
+	})
+}
+
+func validateChirp(body string) (string, error) {
+	const maxChirpLength = 140
+	if len(body) > maxChirpLength {
+		return "", errors.New("Chirp is too long")
+	}
+
+	badWords := map[string]struct{}{
+		"kerfuffle": {},
+		"sharbert":  {},
+		"fornax":    {},
+	}
+	cleaned := getCleanedBody(body, badWords)
+	return cleaned, nil
+}
+
+func getCleanedBody(body string, badWords map[string]struct{}) string {
+	words := strings.Split(body, " ")
+	for i, word := range words {
+		loweredWord := strings.ToLower(word)
+		if _, ok := badWords[loweredWord]; ok {
+			words[i] = "****"
+		}
+	}
+	cleaned := strings.Join(words, " ")
+	return cleaned
 }
