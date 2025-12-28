@@ -126,3 +126,24 @@ func getCleanedBody(body string, badWords map[string]struct{}) string {
 	cleaned := strings.Join(words, " ")
 	return cleaned
 }
+
+// Get All Chirps
+func (cfg *apiConfig) handleGetAllChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.db.GetAllChirps(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Can not get all chirps", err)
+		return
+	}
+
+	response := make([]Chirp, len(chirps))
+	for i, c := range chirps {
+		response[i] = Chirp{
+			Id:        c.ID,
+			CreatedAt: c.CreatedAt,
+			UpdatedAt: c.UpdatedAt,
+			Body:      c.Body,
+			UserID:    c.UserID,
+		}
+	}
+	respondWithJSON(w, http.StatusOK, response)
+}
