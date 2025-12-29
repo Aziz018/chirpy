@@ -3,6 +3,8 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/argon2id"
@@ -33,6 +35,7 @@ func CheckPasswordHash(password, hash string) (bool, error) {
 	return match, nil
 }
 
+// Generate JWT token
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
 	now := time.Now().UTC()
 	claims := jwt.RegisteredClaims{
@@ -77,4 +80,17 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("invalid user ID: %w", err)
 	}
 	return id, nil
+}
+
+func GetBearerToken(headers http.Header) (string, error) {
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("missing Authorization header")
+	}
+
+	prefix := "Bearer "
+	if !strings.HasPrefix(authHeader, prefix) {
+		return "", errors.New("invalid authorization header")
+	}
+	return authHeader[len(prefix):], nil
 }
