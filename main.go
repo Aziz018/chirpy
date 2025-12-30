@@ -10,7 +10,6 @@ import (
 	"chirpy/internal/database"
 
 	"github.com/joho/godotenv"
-
 	_ "github.com/lib/pq"
 )
 
@@ -61,20 +60,24 @@ func main() {
 	const filepathRoot = "."
 	const port = "8080"
 
-	handler := http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))
-
 	mux := http.NewServeMux()
+	fsHandler := http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))
+	mux.Handle("/app/", apiCfg.middlewareMetricsInc(fsHandler))
 
-	mux.Handle("/app/", apiCfg.middlewareMetricsInc(handler))
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
-	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+
+	mux.HandleFunc("POST /api/login", apiCfg.handleUserLogin)
+	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
+	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
+
+	mux.HandleFunc("POST /api/users", apiCfg.handlerUsersCreate)
+
+	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
+	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsRetrieve)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpsGet)
 
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
-	mux.HandleFunc("POST /api/users", apiCfg.handleCreateUser)
-	mux.HandleFunc("POST /api/chirps", apiCfg.handleCreateChirp)
-	mux.HandleFunc("GET /api/chirps", apiCfg.handleGetAllChirps)
-	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handleGetChirp)
-	mux.HandleFunc("POST /api/login", apiCfg.handleUserLogin)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
