@@ -266,23 +266,39 @@ func getCleanedBody(body string, badWords map[string]struct{}) string {
 
 // Get All Chirps
 func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.db.GetAllChirps(r.Context())
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Can not get all chirps", err)
-		return
-	}
-
-	response := make([]Chirp, len(chirps))
-	for i, c := range chirps {
-		response[i] = Chirp{
-			Id:        c.ID,
-			CreatedAt: c.CreatedAt,
-			UpdatedAt: c.UpdatedAt,
-			Body:      c.Body,
-			UserID:    c.UserID,
+	authorID := r.URL.Query()["author_id"]
+	if authorID != nil && authorID[0] != "" {
+		userId, err := uuid.Parse(authorID[0])
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "invalid author id", err)
+			return
 		}
+		chripsDB, err := cfg.db.GetAllChirpsByUserID(r.Context(), userId)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Can not get all chirps", err)
+			return
+		} else if chripsDB != nil {
+			respondWithJSON(w, http.StatusOK, chripsDB)
+		}
+	} else {
+		chirps, err := cfg.db.GetAllChirps(r.Context())
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Can not get all chirps", err)
+			return
+		}
+
+		response := make([]Chirp, len(chirps))
+		for i, c := range chirps {
+			response[i] = Chirp{
+				Id:        c.ID,
+				CreatedAt: c.CreatedAt,
+				UpdatedAt: c.UpdatedAt,
+				Body:      c.Body,
+				UserID:    c.UserID,
+			}
+		}
+		respondWithJSON(w, http.StatusOK, response)
 	}
-	respondWithJSON(w, http.StatusOK, response)
 }
 
 // Get One Chirp
