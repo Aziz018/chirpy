@@ -102,3 +102,19 @@ func MakeRefreshToken() string {
 	rand.Read(token)
 	return hex.EncodeToString(token)
 }
+
+// Polka apikey
+// Authorization: ApiKey THE_KEY_HERE
+func GetAPIKey(headers http.Header) (string, error) {
+	apiKeyHeader := headers.Get("Authorization")
+	if apiKeyHeader == "" {
+		return "", errors.New("missing Authorization header")
+	}
+
+	prefix := "ApiKey "
+	if !strings.HasPrefix(apiKeyHeader, prefix) {
+		return "", errors.New("invalid authorization header")
+	}
+
+	return apiKeyHeader[len(prefix):], nil
+}

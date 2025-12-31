@@ -150,6 +150,11 @@ func (cfg *apiConfig) handlerUserUpgrade(w http.ResponseWriter, r *http.Request)
 		Data  Data   `json:"data"`
 	}
 
+	if apiKey, err := auth.GetAPIKey(r.Header); err != nil || apiKey != cfg.apiKey {
+		respondWithError(w, http.StatusUnauthorized, "missing or invalid api key", err)
+		return
+	}
+
 	params := parameters{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 		respondWithError(w, http.StatusBadRequest, "invalid request body", err)
@@ -166,7 +171,6 @@ func (cfg *apiConfig) handlerUserUpgrade(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "can not upgrade user", err)
 		return
 	}
-	// cfg.db.GetUserByEmail(r.Context(), user.Email)
 
 	w.WriteHeader(http.StatusNoContent)
 }
